@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "radioplayer"
+version = "2.6.0"
+description = "A PyQt6 desktop client for internet radio streams."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "PyQt6>=6.11,<6.12",
+    "requests>=2.34,<3",
+]
+
+[tool.setuptools]
+packages = ["radio_player"]

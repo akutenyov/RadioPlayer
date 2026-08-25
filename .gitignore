@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# PyInstaller build artifacts
+build/
+dist/
+localpycs/
+*.toc
+*.pyz
+*.pkg
+base_library.zip
+warn-*.txt
+xref-*.html
+
+# Local executable release; publish it as a GitHub Release asset instead.
+RadioPlayer_v2.exe
+
+# Duplicate local screenshot; README uses screen_s_rp.jpg.
+Знімок екрана 2026-08-25 093838.jpg

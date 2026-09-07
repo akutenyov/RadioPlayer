@@ -2,7 +2,7 @@
 
 All notable project changes are documented in this file.
 
-## Unreleased
+## 2.7.0 - 2026-09-07
 
 - Split the UI coordinator into dedicated playback, station-table, and metadata-view modules.
 - Persist the selected country, volume, and last selected station without auto-playing streams at launch.

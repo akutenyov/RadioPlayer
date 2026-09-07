@@ -11,7 +11,7 @@ API_URL = "https://de1.api.radio-browser.info/json/stations/search"
 COUNTRIES_URL = "https://de1.api.radio-browser.info/json/countries"
 MAX_STATIONS = 2000
 DEFAULT_TIMEOUT_SECONDS = 8
-APP_VERSION = "2.6"
+APP_VERSION = "2.7"
 
 
 def build_session() -> requests.Session:

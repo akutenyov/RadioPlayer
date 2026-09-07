@@ -1,6 +1,8 @@
 # Python cache
 __pycache__/
 *.py[cod]
+.coverage
+*.egg-info/
 
 # Virtual environments
 .venv/

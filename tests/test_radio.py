@@ -1,22 +1,18 @@
 """Unit tests for RadioPlayer that do not require a network connection."""
 
 import os
-import sys
 import unittest
-from pathlib import Path
 from unittest.mock import Mock, patch
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR))
 
 import requests
 
-from radio_player import api
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PyQt6.QtWidgets import QApplication, QTableWidgetItem
+
+from radio_player import api, metadata
 from radio_player.app import RadioApp
 from radio_player.widgets import BitrateItem
-from PyQt6.QtWidgets import QApplication, QTableWidgetItem
 
 
 class FakeResponse:
@@ -49,7 +45,14 @@ class StationsLoaderTests(unittest.TestCase):
     def test_loader_filters_deduplicates_and_sorts_api_response(self):
         response = FakeResponse(
             [
-                {"name": "Zulu", "url": "https://example.com/z", "country": "UA", "tags": "rock", "codec": "MP3", "bitrate": 128},
+                {
+                    "name": "Zulu",
+                    "url": "https://example.com/z",
+                    "country": "UA",
+                    "tags": "rock",
+                    "codec": "MP3",
+                    "bitrate": 128,
+                },
                 {"name": "Duplicate", "url_resolved": "HTTPS://EXAMPLE.COM/Z", "country": "UA"},
                 {"name": "Alpha", "url_resolved": "https://example.com/a", "state": "Kyiv"},
                 {"name": "No stream", "country": "UA"},
@@ -124,6 +127,68 @@ class CountriesLoaderTests(unittest.TestCase):
         self.assertEqual(countries[0]["Всі країни"], "")
         self.assertEqual(countries[0]["Британія"], "GB")
         self.assertEqual(countries[0]["Australia"], "AU")
+
+
+class ApiDataCleaningTests(unittest.TestCase):
+    def test_clean_stations_prefers_resolved_url_and_uses_safe_defaults(self):
+        stations = api.clean_stations(
+            [
+                {
+                    "name": "  Beta FM  ",
+                    "url": "https://fallback.example/stream",
+                    "url_resolved": " https://resolved.example/stream ",
+                    "country": " ",
+                    "tags": "",
+                    "codec": "",
+                    "bitrate": None,
+                },
+                {"name": "Alpha FM", "url": "https://alpha.example/stream"},
+            ]
+        )
+
+        self.assertEqual([station["name"] for station in stations], ["Alpha FM", "Beta FM"])
+        self.assertEqual(stations[1]["url"], "https://resolved.example/stream")
+        self.assertEqual(stations[1]["country"], "-")
+        self.assertEqual(stations[1]["genre"], "-")
+        self.assertEqual(stations[1]["codec"], "-")
+        self.assertEqual(stations[1]["bitrate"], "-")
+
+    def test_clean_countries_normalizes_codes_and_rejects_small_payload(self):
+        with self.assertRaisesRegex(ValueError, "недостатньо країн"):
+            api.clean_countries([{"name": "Ukraine", "iso_3166_1": "ua"}])
+
+        payload = [
+            {"name": f"Country {index}", "iso_3166_1": f"x{index}"}
+            for index in range(10)
+        ]
+        countries = api.clean_countries(payload)
+
+        self.assertEqual(countries["Country 0"], "X0")
+        self.assertEqual(list(countries)[0], "Всі країни")
+
+
+class MetadataTests(unittest.TestCase):
+    def test_normalize_bitrate_handles_kilobits_bits_and_invalid_values(self):
+        self.assertEqual(metadata.normalize_bitrate("128"), "128")
+        self.assertEqual(metadata.normalize_bitrate("128000"), "128")
+        self.assertEqual(metadata.normalize_bitrate("128.5"), "128")
+        self.assertEqual(metadata.normalize_bitrate("unknown"), "unknown")
+        self.assertEqual(metadata.normalize_bitrate("-"), "-")
+
+    def test_clean_stream_title_removes_control_characters_quotes_and_extra_space(self):
+        self.assertEqual(
+            metadata.clean_stream_title("  '\x00Artist   –   Track; '  "),
+            "Artist – Track",
+        )
+
+    def test_probe_stream_title_returns_empty_string_for_invalid_metadata_interval(self):
+        response = Mock()
+        response.headers = {"icy-metaint": "not-a-number"}
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+
+        with patch.object(metadata.requests, "get", return_value=response):
+            self.assertEqual(metadata.probe_stream_title("https://example.com/stream", "test-agent"), "")
 
 
 class UiBehaviorTests(unittest.TestCase):

@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Creating a release and attaching its files needs write access only in this workflow.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Test, build, and publish Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install application and build dependencies
+        run: python -m pip install -r requirements.txt pyinstaller
+
+      - name: Run unit tests before packaging
+        run: python -m unittest discover -s tests -v
+
+      - name: Build executable and checksum
+        shell: pwsh
+        run: ./scripts/build_release.ps1
+
+      - name: Publish release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          # Upload again on a workflow re-run instead of failing after the release exists.
+          gh release view $env:GITHUB_REF_NAME
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME dist/RadioPlayer.exe dist/RadioPlayer.exe.sha256 --clobber
+          }
+          else {
+            gh release create $env:GITHUB_REF_NAME dist/RadioPlayer.exe dist/RadioPlayer.exe.sha256 --title "RadioPlayer $env:GITHUB_REF_NAME" --generate-notes
+          }
